@@ -11,6 +11,18 @@ Plateforme de génération de vidéos IA avec authentification Supabase, crédit
 - Les crédits Stripe sont attribués uniquement après vérification cryptographique du webhook ou relecture serveur de la Checkout Session.
 - Les événements Stripe répétés ne créditent jamais deux fois le même achat.
 - Le navigateur ne possède ni clé fal.ai, ni clé Stripe secrète, ni clé Supabase `service_role`.
+- L’historique des vidéos est filtré côté serveur par l’utilisateur authentifié.
+- Le paiement demande un consentement explicite avant l’exécution immédiate du service numérique.
+
+## Parcours client
+
+- Connexion par lien sécurisé Supabase.
+- Achat test de 5 crédits via Stripe Checkout.
+- Une génération vidéo de 5 secondes consomme un crédit.
+- Les échecs terminaux remboursent automatiquement le crédit.
+- Les créations récentes peuvent être relues et ouvertes depuis l’historique du compte.
+
+Les pages légales sont fournies en version de pré-lancement. Avant d’activer Stripe en mode réel, compléter l’identité de l’entreprise, l’adresse, le numéro BCE/TVA et un contact professionnel.
 
 ## Variables Vercel requises
 

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check api/checkout-status.js && node --check api/create-checkout-session.js && node --check api/generate.js && node --check api/me.js && node --check api/status.js && node --check api/stripe-webhook.js && node --check lib/auth.js && node --check lib/supabase-admin.js",
+    "check": "node --check api/checkout-status.js && node --check api/create-checkout-session.js && node --check api/generate.js && node --check api/history.js && node --check api/me.js && node --check api/status.js && node --check api/stripe-webhook.js && node --check lib/auth.js && node --check lib/supabase-admin.js",
     "test": "node --test"
   },
   "dependencies": {
