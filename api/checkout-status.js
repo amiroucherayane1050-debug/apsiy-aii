@@ -1,22 +1,6 @@
-import Stripe from "stripe";
-
 import { requireUser } from "../lib/auth.js";
 import { getSupabaseAdmin } from "../lib/supabase-admin.js";
-
-function stripeClient() {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  const mode = process.env.STRIPE_MODE || "test";
-
-  if (!secretKey) {
-    throw new Error("Configuration Stripe incomplète.");
-  }
-
-  if (mode !== "live" && !secretKey.startsWith("sk_test_")) {
-    throw new Error("Une clé Stripe de test est requise.");
-  }
-
-  return new Stripe(secretKey);
-}
+import { getStripeClient } from "../lib/stripe.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store, max-age=0");
@@ -32,7 +16,8 @@ export default async function handler(req, res) {
 
     const sessionId =
       typeof req.query.sessionId === "string" ? req.query.sessionId : "";
-    const expectedPrefix = (process.env.STRIPE_MODE || "test") === "live"
+    const { mode, stripe } = getStripeClient();
+    const expectedPrefix = mode === "live"
       ? "cs_live_"
       : "cs_test_";
 
@@ -40,7 +25,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Session de paiement invalide." });
     }
 
-    const session = await stripeClient().checkout.sessions.retrieve(sessionId);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
     const sessionUserId = session.metadata?.user_id || session.client_reference_id;
 
     if (sessionUserId !== user.id) {
