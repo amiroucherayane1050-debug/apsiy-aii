@@ -66,7 +66,7 @@ footer{padding:45px 0 34px;border-top:1px solid rgba(255,255,255,.08);color:var(
 <div class="section-heading studio-heading"><div><div class="eyebrow">02 // CONSOLE DE CRÉATION</div><h2>Construis ta prochaine réalité.</h2></div><p class="sub">Connecte-toi, charge ton idée et laisse le moteur donner vie à ton univers.</p></div>
 <div class="studio"><div class="panel source-panel"><div class="panel-label"><span>01</span> CONFIGURATION</div><h3>Choisis ton terrain de jeu</h3><div class="drop"><span class="drop-symbol">＋</span><b>Source visuelle facultative</b><small>Le mode prompt fonctionne immédiatement</small></div><div class="chips"><span class="chip active-chip">PROMPT</span><span class="chip">9:16</span><span class="chip">5 SEC</span><span class="chip">HD</span></div><div class="system-readout"><span>MOTEUR</span><b>READY</b><i></i><span>FILE D’ATTENTE</span><b>ACTIVE</b></div></div><div class="panel prompt-panel"><div class="panel-label"><span>02</span> DIRECTIVE</div><h3>Décris la scène</h3><textarea id="prompt" maxlength="2000" placeholder="Exemple : une hypercar noire traverse une mégalopole sous la pluie, néons cyan, caméra basse, vitesse extrême, rendu jeu vidéo AAA..."></textarea><div class="chips"><span class="chip">CINÉMATIQUE</span><span class="chip">GAME WORLD</span><span class="chip">NEON NOIR</span><span class="chip">VERTICAL</span></div><button type="button" id="generate" class="btn primary generate-btn" disabled><span>Connecte-toi pour générer</span><b aria-hidden="true">↗</b></button><div class="status" id="status"><strong id="statusText">Analyse de la scène…</strong><div class="bar"><span id="bar"></span></div></div></div></div>
 <div id="latestVideo" class="latest-video" hidden><h3>Ta nouvelle vidéo est prête ✦</h3><div id="latestVideoContent"></div></div>
-<div class="credit-console"><div><span class="console-kicker">RECHARGE DU MOTEUR</span><h3>5 générations · 9,99 €</h3><p>Le paiement est encore en environnement de test. Aucune carte réelle n’est débitée.</p></div><div class="credit-actions"><label class="consent-row"><input type="checkbox" id="digitalConsent"><span>J’accepte l’exécution immédiate du service numérique. <a href="/conditions.html" target="_blank" rel="noopener">Conditions</a></span></label><button type="button" id="buyCredits" class="btn secondary buy-btn" disabled>Acheter 5 crédits</button><p id="paymentNotice" class="notice" aria-live="polite"></p><p class="prelaunch-note">Paiement Stripe en mode test : aucune carte réelle n’est débitée pendant les essais.</p></div></div>
+<div class="credit-console"><div><span class="console-kicker">RECHARGE DU MOTEUR</span><h3 id="creditPackTitle">5 générations · 9,99 €</h3><p id="paymentModeText">Vérification du paiement sécurisé…</p></div><div class="credit-actions"><label class="consent-row"><input type="checkbox" id="digitalConsent"><span>J’accepte l’exécution immédiate du service numérique. <a href="/conditions.html" target="_blank" rel="noopener">Conditions</a></span></label><button type="button" id="buyCredits" class="btn secondary buy-btn" disabled>Acheter 5 crédits</button><p id="paymentNotice" class="notice" aria-live="polite"></p></div></div>
 </section>
 <section class="section" id="history"><div class="section-heading"><div><div class="eyebrow">03 // ARCHIVES PERSONNELLES</div><h2>Mes créations récentes</h2></div><p class="sub">Tes rendus restent liés à ton compte pour les relire, les ouvrir et les télécharger.</p></div><div id="historyGrid" class="history-grid" aria-live="polite"><div class="history-empty">Connecte-toi pour déverrouiller tes archives.</div></div></section>
 <section class="section worlds-section" id="showcase"><div class="section-heading"><div><div class="eyebrow">04 // MONDES À EXPLORER</div><h2>Trois univers.<br><span>Aucune limite.</span></h2></div><p class="sub">Course, science-fiction, fantasy futuriste : chaque idée peut devenir ton prochain terrain de jeu.</p></div><div class="showcase"><article class="shot"><img src="/assets/quantum-city.webp" alt="Mégapole futuriste aux lumières cyan et violettes" loading="lazy" width="1800" height="750"><div class="tag">WORLD 01</div><div class="shot-copy"><b>Quantum City</b><span>Mégapole cinématique</span></div></article><article class="shot"><img src="/assets/neon-racer.webp" alt="Hypercar futuriste dans un tunnel néon" loading="lazy" width="1600" height="800"><div class="tag">WORLD 02</div><div class="shot-copy"><b>Velocity Core</b><span>Course nocturne</span></div></article><article class="shot"><img src="/assets/sky-sanctuary.webp" alt="Sanctuaire de science-fiction flottant au-dessus des nuages" loading="lazy" width="1599" height="900"><div class="tag">WORLD 03</div><div class="shot-copy"><b>Sky Sanctuary</b><span>Royaume orbital</span></div></article></div></section>
@@ -82,6 +82,8 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_
 const accountBtn = document.getElementById('accountBtn');
 const creditsDisplay = document.getElementById('creditsDisplay');
 const buyCreditsBtn = document.getElementById('buyCredits');
+const creditPackTitle = document.getElementById('creditPackTitle');
+const paymentModeText = document.getElementById('paymentModeText');
 const paymentNotice = document.getElementById('paymentNotice');
 const generateBtn = document.getElementById('generate');
 const statusBox = document.getElementById('status');
@@ -96,6 +98,10 @@ let currentSession = null;
 let credits = 0;
 let generationBusy = false;
 let checkoutBusy = false;
+let loginRequestBusy = false;
+let checkoutReady = false;
+let stripeMode = 'unavailable';
+let creditPack = { credits: 5, amount: 999, currency: 'EUR' };
 
 const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
@@ -105,6 +111,65 @@ async function readJson(response) {
   } catch {
     return {};
   }
+}
+
+function creditPackPrice() {
+  return new Intl.NumberFormat('fr-BE', {
+    style: 'currency',
+    currency: creditPack.currency
+  }).format(creditPack.amount / 100);
+}
+
+async function loadPublicConfig() {
+  try {
+    const response = await fetch('/api/public-config', { cache: 'no-store' });
+    const data = await readJson(response);
+
+    if (!response.ok) {
+      throw new Error('Configuration publique indisponible.');
+    }
+
+    const pack = data.creditPack || {};
+    if (
+      Number.isInteger(pack.credits) && pack.credits > 0 &&
+      Number.isInteger(pack.amount) && pack.amount > 0 &&
+      typeof pack.currency === 'string'
+    ) {
+      creditPack = {
+        credits: pack.credits,
+        amount: pack.amount,
+        currency: pack.currency.toUpperCase()
+      };
+    }
+
+    stripeMode = data.stripeMode;
+    checkoutReady = data.checkoutReady === true;
+  } catch (error) {
+    console.error(error);
+    stripeMode = 'unavailable';
+    checkoutReady = false;
+  }
+
+  creditPackTitle.textContent = `${creditPack.credits} générations · ${creditPackPrice()}`;
+  paymentModeText.textContent = stripeMode === 'live'
+    ? 'Paiement réel et sécurisé par Stripe. Les crédits sont ajoutés après confirmation.'
+    : stripeMode === 'test'
+      ? 'Mode test Stripe : aucune carte réelle n’est débitée.'
+      : 'Le paiement est temporairement indisponible.';
+}
+
+function friendlyAuthError(error) {
+  const value = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
+
+  if (value.includes('rate limit') || value.includes('over_email_send_rate_limit')) {
+    return 'Trop de liens ont été demandés. Attends quelques minutes avant de réessayer.';
+  }
+
+  if (value.includes('invalid') && value.includes('email')) {
+    return 'Cette adresse e-mail ne semble pas valide.';
+  }
+
+  return 'La connexion est momentanément indisponible. Réessaie dans quelques instants.';
 }
 
 async function authenticatedFetch(url, options = {}) {
@@ -253,15 +318,22 @@ async function loadHistory() {
 
 function renderAccount() {
   const signedIn = Boolean(currentSession);
-  accountBtn.textContent = signedIn ? 'Déconnexion' : 'Connexion';
+  accountBtn.textContent = signedIn
+    ? 'Déconnexion'
+    : loginRequestBusy
+      ? 'Envoi du lien…'
+      : 'Connexion';
+  accountBtn.setAttribute('aria-busy', String(loginRequestBusy));
   creditsDisplay.textContent = signedIn
     ? `${credits} crédit${credits === 1 ? '' : 's'}`
     : 'Connecte-toi';
 
-  buyCreditsBtn.disabled = !signedIn || checkoutBusy || !digitalConsent.checked;
+  buyCreditsBtn.disabled = !signedIn || !checkoutReady || checkoutBusy || !digitalConsent.checked;
   buyCreditsBtn.textContent = checkoutBusy
     ? 'Ouverture du paiement…'
-    : 'Acheter 5 crédits — 9,99 €';
+    : !checkoutReady
+      ? 'Paiement indisponible'
+      : `Acheter ${creditPack.credits} crédits — ${creditPackPrice()}`;
 
   generateBtn.disabled = !signedIn || credits < 1 || generationBusy;
   generateBtn.textContent = !signedIn
@@ -321,6 +393,8 @@ async function syncAccount(session) {
 accountBtn.addEventListener('click', async event => {
   event.preventDefault();
 
+  if (loginRequestBusy) return;
+
   if (currentSession) {
     await supabaseClient.auth.signOut();
     return;
@@ -329,17 +403,28 @@ accountBtn.addEventListener('click', async event => {
   const email = window.prompt('Entre ton adresse email :')?.trim();
   if (!email) return;
 
-  const { error } = await supabaseClient.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: `${window.location.origin}/` }
-  });
+  loginRequestBusy = true;
+  renderAccount();
 
-  if (error) {
-    window.alert('Erreur : ' + error.message);
-    return;
+  try {
+    const { error } = await supabaseClient.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/` }
+    });
+
+    if (error) {
+      window.alert(friendlyAuthError(error));
+      return;
+    }
+
+    window.alert('Un lien de connexion sécurisé a été envoyé à ton email.');
+  } catch (error) {
+    console.error(error);
+    window.alert(friendlyAuthError(error));
+  } finally {
+    loginRequestBusy = false;
+    renderAccount();
   }
-
-  window.alert('Un lien de connexion sécurisé a été envoyé à ton email.');
 });
 
 digitalConsent.addEventListener('change', renderAccount);
@@ -481,6 +566,7 @@ supabaseClient.auth.onAuthStateChange((_event, session) => {
 });
 
 (async () => {
+  await loadPublicConfig();
   const { data: { session } } = await supabaseClient.auth.getSession();
   await syncAccount(session);
 
