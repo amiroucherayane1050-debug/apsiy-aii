@@ -68,6 +68,10 @@ async function creditPackPriceId(stripe) {
 }
 
 function appUrl() {
+  if (process.env.VERCEL_ENV !== "production" && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
   const value = process.env.APP_URL;
 
   if (!value) {
