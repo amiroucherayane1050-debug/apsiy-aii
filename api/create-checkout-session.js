@@ -3,6 +3,9 @@ import Stripe from "stripe";
 import { requireUser } from "../lib/auth.js";
 
 const CREDIT_PACK_SIZE = 5;
+const CREDIT_PACK_PRICE = 999;
+const CREDIT_PACK_CURRENCY = "eur";
+const CREDIT_PACK_LOOKUP_KEY = "apsiy_starter_5_credits_eur_v1";
 
 function stripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -17,6 +20,51 @@ function stripeClient() {
   }
 
   return new Stripe(secretKey);
+}
+
+async function creditPackPriceId(stripe) {
+  if (process.env.STRIPE_PRICE_ID) {
+    return process.env.STRIPE_PRICE_ID;
+  }
+
+  const existingPrices = await stripe.prices.list({
+    active: true,
+    limit: 1,
+    lookup_keys: [CREDIT_PACK_LOOKUP_KEY],
+  });
+
+  if (existingPrices.data[0]) {
+    return existingPrices.data[0].id;
+  }
+
+  const product = await stripe.products.create(
+    {
+      name: "Starter – 5 crédits",
+      description: "Pack de 5 crédits vidéo Apsiy Ai",
+      metadata: {
+        app: "apsiy-ai",
+        credits: String(CREDIT_PACK_SIZE),
+      },
+    },
+    {
+      idempotencyKey: "apsiy-starter-5-credits-product-v1",
+    },
+  );
+
+  const price = await stripe.prices.create(
+    {
+      active: true,
+      currency: CREDIT_PACK_CURRENCY,
+      lookup_key: CREDIT_PACK_LOOKUP_KEY,
+      product: product.id,
+      unit_amount: CREDIT_PACK_PRICE,
+    },
+    {
+      idempotencyKey: "apsiy-starter-5-credits-price-v1",
+    },
+  );
+
+  return price.id;
 }
 
 function appUrl() {
@@ -41,13 +89,9 @@ export default async function handler(req, res) {
     const user = await requireUser(req, res);
     if (!user) return;
 
-    const priceId = process.env.STRIPE_PRICE_ID;
-    if (!priceId) {
-      throw new Error("STRIPE_PRICE_ID manquant.");
-    }
-
     const baseUrl = appUrl();
     const stripe = stripeClient();
+    const priceId = await creditPackPriceId(stripe);
     const metadata = {
       user_id: user.id,
       credits: String(CREDIT_PACK_SIZE),
