@@ -1,0 +1,307 @@
+/* Apsiy Ai — accueil typographique, septembre 2026 */
+html {
+  scroll-padding-top: 92px;
+}
+
+nav {
+  min-height: 78px;
+}
+
+.hero {
+  display: block;
+  padding: 0 0 clamp(72px, 10vw, 124px);
+}
+
+.hero-copy {
+  position: relative;
+  display: flex;
+  min-height: calc(100svh - 78px);
+  max-width: 1120px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(64px, 9vh, 112px) 0 clamp(56px, 9vh, 96px);
+}
+
+.hero-copy::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: min(72vw, 820px);
+  aspect-ratio: 1;
+  top: 48%;
+  left: 25%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(104, 105, 255, 0.2), rgba(72, 221, 255, 0.07) 38%, transparent 68%);
+  filter: blur(24px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.hero .badge {
+  font-size: clamp(0.76rem, 1.2vw, 0.9rem);
+  letter-spacing: 0.025em;
+}
+
+.hero h1 {
+  max-width: 1080px;
+  margin: clamp(24px, 4vh, 38px) 0 24px;
+  font-size: clamp(5.4rem, 13vw, 10.8rem);
+  line-height: 0.78;
+  letter-spacing: -0.088em;
+  text-wrap: balance;
+}
+
+.hero .grad {
+  padding-right: 0.08em;
+  background-image: linear-gradient(100deg, #d4c7ff 2%, #8cdbff 49%, #7dffd5 92%);
+}
+
+.hero .lead {
+  max-width: 720px;
+  margin: 0;
+  color: #c3cae7;
+  font-size: clamp(1.05rem, 1.8vw, 1.32rem);
+  line-height: 1.62;
+}
+
+.hero .actions {
+  margin-top: 32px;
+}
+
+.hero .btn {
+  min-height: 56px;
+  padding-inline: 24px;
+}
+
+.hero .metrics {
+  margin-top: 34px;
+}
+
+.hero .metric {
+  min-width: 155px;
+  padding: 13px 15px;
+}
+
+.scroll-cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: clamp(28px, 6vh, 58px);
+  color: #cbd2ed;
+  font-size: 0.84rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.scroll-cue span {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.visual {
+  min-height: 0;
+  height: min(76vw, 760px);
+  margin-top: 14px;
+}
+
+.orb-shell {
+  min-height: 0;
+  height: 100%;
+  border-radius: 42px;
+}
+
+.section {
+  padding: clamp(64px, 9vw, 112px) 0;
+}
+
+.section > .eyebrow,
+.section > h2,
+.section > .sub {
+  max-width: 840px;
+}
+
+.section h2 {
+  font-size: clamp(2.55rem, 5.6vw, 4.8rem);
+  line-height: 0.96;
+}
+
+.card,
+.panel,
+.shot,
+.banner {
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+@media (max-width: 960px) {
+  .hero {
+    display: block;
+  }
+
+  .hero h1 {
+    font-size: clamp(5rem, 17vw, 8rem);
+  }
+
+  .visual,
+  .orb-shell {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  html {
+    scroll-padding-top: 76px;
+  }
+
+  .wrap {
+    width: min(100% - 28px, 1180px);
+  }
+
+  nav {
+    min-height: 72px;
+    gap: 8px;
+    padding: 12px 0;
+  }
+
+  .logo {
+    flex: 0 0 auto;
+    font-size: 1.32rem;
+  }
+
+  .account-state {
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 7px;
+  }
+
+  .account-state .btn {
+    min-height: 44px;
+    padding: 10px 13px;
+    border-radius: 14px;
+    font-size: 0.86rem;
+  }
+
+  #creditsDisplay {
+    display: inline-block;
+    max-width: 72px;
+    color: #aeb7d9;
+    font-size: 0.72rem;
+    line-height: 1.15;
+    text-align: right;
+  }
+
+  .hero {
+    padding-top: 0;
+    padding-bottom: 78px;
+  }
+
+  .hero-copy {
+    min-height: calc(100svh - 72px);
+    padding: 44px 0 52px;
+  }
+
+  .hero-copy::before {
+    width: 115vw;
+    top: 42%;
+    left: 42%;
+  }
+
+  .hero h1 {
+    margin: 24px 0 20px;
+    font-size: clamp(4.1rem, 22.5vw, 6.3rem);
+    line-height: 0.82;
+    letter-spacing: -0.09em;
+  }
+
+  .hero .lead {
+    max-width: 34rem;
+    font-size: 1rem;
+    line-height: 1.58;
+  }
+
+  .hero .actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 26px;
+  }
+
+  .hero .actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .hero .metrics {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 22px;
+  }
+
+  .hero .metric {
+    min-width: 0;
+    padding: 10px 8px;
+    border-radius: 14px;
+  }
+
+  .hero .metric b {
+    font-size: 0.78rem;
+  }
+
+  .hero .metric span {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.66rem;
+    line-height: 1.25;
+  }
+
+  .scroll-cue {
+    margin-top: 28px;
+    font-size: 0.72rem;
+  }
+
+  .visual {
+    height: min(138vw, 620px);
+    margin-top: 0;
+  }
+
+  .orb-shell {
+    border-radius: 28px;
+  }
+
+  .section {
+    padding: 70px 0;
+  }
+
+  .section h2 {
+    font-size: clamp(2.45rem, 13vw, 3.65rem);
+    line-height: 0.98;
+  }
+}
+
+@media (max-width: 370px) {
+  #creditsDisplay {
+    display: none;
+  }
+
+  .hero h1 {
+    font-size: clamp(3.8rem, 21vw, 5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora,
+  .orb-shell::after {
+    animation: none;
+  }
+}
