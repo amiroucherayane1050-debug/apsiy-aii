@@ -1,11 +1,36 @@
 begin;
 
+-- Preserve the original Apsiy profile table, which used `id` for the
+-- authenticated user. New installations already use `user_id`.
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'profiles'
+      and column_name = 'id'
+  ) and not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'profiles'
+      and column_name = 'user_id'
+  ) then
+    alter table public.profiles rename column id to user_id;
+  end if;
+end;
+$$;
+
 create table if not exists public.profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   credits integer not null default 0 check (credits >= 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles
+  add column if not exists updated_at timestamptz not null default now();
 
 create table if not exists public.credit_transactions (
   id bigint generated always as identity primary key,
@@ -39,6 +64,7 @@ alter table public.credit_transactions enable row level security;
 alter table public.video_jobs enable row level security;
 
 drop policy if exists "Users can read their profile" on public.profiles;
+drop policy if exists "Users can view their own profile" on public.profiles;
 create policy "Users can read their profile"
   on public.profiles for select
   to authenticated
