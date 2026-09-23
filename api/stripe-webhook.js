@@ -1,27 +1,11 @@
-import Stripe from "stripe";
-
 import { getSupabaseAdmin } from "../lib/supabase-admin.js";
+import { getStripeClient } from "../lib/stripe.js";
 
 export const config = {
   api: {
     bodyParser: false,
   },
 };
-
-function stripeClient() {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  const mode = process.env.STRIPE_MODE || "test";
-
-  if (!secretKey || !process.env.STRIPE_WEBHOOK_SECRET) {
-    throw new Error("Configuration Stripe webhook incomplète.");
-  }
-
-  if (mode !== "live" && !secretKey.startsWith("sk_test_")) {
-    throw new Error("Une clé Stripe de test est requise.");
-  }
-
-  return new Stripe(secretKey);
-}
 
 async function rawBody(req) {
   const chunks = [];
@@ -43,7 +27,9 @@ export default async function handler(req, res) {
 
   try {
     const signature = req.headers["stripe-signature"];
-    const stripe = stripeClient();
+    const { stripe, webhookSecret } = getStripeClient({
+      requireWebhookSecret: true,
+    });
     const payload = await rawBody(req);
 
     if (typeof signature !== "string") {
@@ -53,7 +39,7 @@ export default async function handler(req, res) {
     event = stripe.webhooks.constructEvent(
       payload,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET,
+      webhookSecret,
     );
   } catch (error) {
     console.error("Invalid Stripe webhook", error);
