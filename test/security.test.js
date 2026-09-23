@@ -7,8 +7,10 @@ import createCheckoutSession from "../api/create-checkout-session.js";
 import generate from "../api/generate.js";
 import history from "../api/history.js";
 import me from "../api/me.js";
+import publicConfig from "../api/public-config.js";
 import status from "../api/status.js";
 import stripeWebhook from "../api/stripe-webhook.js";
+import { getStripeClient, getStripeMode, stripeCheckoutReady } from "../lib/stripe.js";
 
 function responseRecorder() {
   const result = { body: null, headers: {}, statusCode: null };
@@ -84,3 +86,76 @@ test("checkout requires digital content consent", async () => {
   assert.match(source, /digital_content_consent: "true"/);
   assert.match(source, /custom_text/);
 });
+
+test("public config exposes only safe checkout state", async () => {
+  const previous = {
+    mode: process.env.STRIPE_MODE,
+    key: process.env.STRIPE_SECRET_KEY,
+    price: process.env.STRIPE_PRICE_ID,
+    webhook: process.env.STRIPE_WEBHOOK_SECRET,
+  };
+
+  process.env.STRIPE_MODE = "test";
+  process.env.STRIPE_SECRET_KEY = "sk_test_example";
+  process.env.STRIPE_WEBHOOK_SECRET = "whsec_example";
+  delete process.env.STRIPE_PRICE_ID;
+
+  try {
+    const { response, result } = responseRecorder();
+    await publicConfig({ method: "GET" }, response);
+
+    assert.equal(result.statusCode, 200);
+    assert.deepEqual(result.body.creditPack, {
+      credits: 5,
+      amount: 999,
+      currency: "EUR",
+    });
+    assert.equal(result.body.stripeMode, "test");
+    assert.equal(result.body.checkoutReady, true);
+    assert.doesNotMatch(JSON.stringify(result.body), /sk_test_|whsec_/);
+  } finally {
+    restoreEnvironment(previous);
+  }
+});
+
+test("Stripe mode and secret key family must match", () => {
+  const previous = {
+    mode: process.env.STRIPE_MODE,
+    key: process.env.STRIPE_SECRET_KEY,
+    price: process.env.STRIPE_PRICE_ID,
+    webhook: process.env.STRIPE_WEBHOOK_SECRET,
+  };
+
+  try {
+    process.env.STRIPE_MODE = "live";
+    process.env.STRIPE_SECRET_KEY = "sk_test_example";
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_example";
+    process.env.STRIPE_PRICE_ID = "price_example";
+
+    assert.equal(getStripeMode(), "live");
+    assert.equal(stripeCheckoutReady(), false);
+    assert.throws(() => getStripeClient(), /ne correspond pas au mode live/);
+
+    process.env.STRIPE_MODE = "test";
+    process.env.STRIPE_SECRET_KEY = "sk_live_example";
+
+    assert.equal(stripeCheckoutReady(), false);
+    assert.throws(() => getStripeClient(), /ne correspond pas au mode test/);
+  } finally {
+    restoreEnvironment(previous);
+  }
+});
+
+function restoreEnvironment(previous) {
+  const entries = [
+    ["STRIPE_MODE", previous.mode],
+    ["STRIPE_SECRET_KEY", previous.key],
+    ["STRIPE_PRICE_ID", previous.price],
+    ["STRIPE_WEBHOOK_SECRET", previous.webhook],
+  ];
+
+  for (const [key, value] of entries) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+}
