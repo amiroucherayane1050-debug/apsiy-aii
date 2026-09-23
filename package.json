@@ -2,7 +2,13 @@
   "name": "apsiy-ai",
   "private": true,
   "type": "module",
+  "scripts": {
+    "check": "node --check api/checkout-status.js && node --check api/create-checkout-session.js && node --check api/generate.js && node --check api/me.js && node --check api/status.js && node --check api/stripe-webhook.js && node --check lib/auth.js && node --check lib/supabase-admin.js",
+    "test": "node --test"
+  },
   "dependencies": {
-    "@fal-ai/client": "^1.6.2"
+    "@fal-ai/client": "^1.6.2",
+    "@supabase/supabase-js": "^2.57.4",
+    "stripe": "^18.5.0"
   }
 }
