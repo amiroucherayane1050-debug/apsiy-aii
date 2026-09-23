@@ -6,6 +6,10 @@ import { getSupabaseAdmin } from "../lib/supabase-admin.js";
 const MODEL = "fal-ai/kling-video/v3/standard/text-to-video";
 const FAILED_STATUSES = new Set(["FAILED", "CANCELLED", "ERROR"]);
 
+function isMissingProviderRequest(error) {
+  return error?.status === 404 || error?.body?.status === "NOT_FOUND";
+}
+
 async function refundFailedJob(supabase, job) {
   if (job.credit_refunded) return true;
 
@@ -139,6 +143,40 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ status: "COMPLETED", video: videoUrl });
   } catch (error) {
+    if (isMissingProviderRequest(error)) {
+      try {
+        const user = await requireUser(req, res);
+        if (!user) return;
+
+        const jobId = typeof req.query.jobId === "string" ? req.query.jobId : "";
+        const supabase = getSupabaseAdmin();
+        const { data: job } = await supabase
+          .from("video_jobs")
+          .select("id,user_id,credit_refunded")
+          .eq("id", jobId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (job) {
+          await supabase
+            .from("video_jobs")
+            .update({ status: "FAILED", updated_at: new Date().toISOString() })
+            .eq("id", job.id)
+            .eq("user_id", user.id);
+
+          const refunded = await refundFailedJob(supabase, job);
+          return res.status(200).json({
+            status: "FAILED",
+            error: refunded
+              ? "La génération n’existe plus chez le fournisseur. Le crédit a été remboursé."
+              : "La génération a échoué. Contacte le support pour ton crédit.",
+          });
+        }
+      } catch (recoveryError) {
+        console.error("Unable to recover missing generation", recoveryError);
+      }
+    }
+
     console.error("Unable to check generation", error);
     return res.status(502).json({
       error: "Impossible de vérifier la génération pour le moment.",

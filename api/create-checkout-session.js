@@ -93,12 +93,20 @@ export default async function handler(req, res) {
     const user = await requireUser(req, res);
     if (!user) return;
 
+    if (req.body?.digitalContentConsent !== true) {
+      return res.status(400).json({
+        error: "Confirme l’exécution immédiate du service avant de payer.",
+      });
+    }
+
     const baseUrl = appUrl();
     const stripe = stripeClient();
     const priceId = await creditPackPriceId(stripe);
     const metadata = {
       user_id: user.id,
       credits: String(CREDIT_PACK_SIZE),
+      digital_content_consent: "true",
+      consented_at: new Date().toISOString(),
     };
 
     const session = await stripe.checkout.sessions.create({
@@ -108,6 +116,12 @@ export default async function handler(req, res) {
       customer_email: user.email || undefined,
       metadata,
       payment_intent_data: { metadata },
+      custom_text: {
+        submit: {
+          message:
+            "En payant, tu demandes l’exécution immédiate du service numérique. Après utilisation des crédits, tu reconnais perdre ton droit de rétractation.",
+        },
+      },
       success_url: `${baseUrl}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/?payment=cancelled`,
     });
