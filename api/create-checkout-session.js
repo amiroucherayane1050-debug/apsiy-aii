@@ -1,30 +1,28 @@
-import Stripe from "stripe";
-
 import { requireUser } from "../lib/auth.js";
+import { getStripeClient } from "../lib/stripe.js";
 
 const CREDIT_PACK_SIZE = 5;
 const CREDIT_PACK_PRICE = 999;
 const CREDIT_PACK_CURRENCY = "eur";
 const CREDIT_PACK_LOOKUP_KEY = "apsiy_starter_5_credits_eur_v1";
 
-function stripeClient() {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  const mode = process.env.STRIPE_MODE || "test";
-
-  if (!secretKey) {
-    throw new Error("Configuration Stripe incomplète.");
-  }
-
-  if (mode !== "live" && !secretKey.startsWith("sk_test_")) {
-    throw new Error("Une clé Stripe de test est requise.");
-  }
-
-  return new Stripe(secretKey);
-}
-
-async function creditPackPriceId(stripe) {
+async function creditPackPriceId(stripe, mode) {
   if (process.env.STRIPE_PRICE_ID) {
-    return process.env.STRIPE_PRICE_ID;
+    const price = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID);
+
+    if (
+      !price.active ||
+      price.currency !== CREDIT_PACK_CURRENCY ||
+      price.unit_amount !== CREDIT_PACK_PRICE
+    ) {
+      throw new Error("Le prix Stripe configuré ne correspond pas au pack Apsiy Ai.");
+    }
+
+    return price.id;
+  }
+
+  if (mode === "live") {
+    throw new Error("STRIPE_PRICE_ID live manquant.");
   }
 
   const existingPrices = await stripe.prices.list({
@@ -100,8 +98,8 @@ export default async function handler(req, res) {
     }
 
     const baseUrl = appUrl();
-    const stripe = stripeClient();
-    const priceId = await creditPackPriceId(stripe);
+    const { mode, stripe } = getStripeClient();
+    const priceId = await creditPackPriceId(stripe, mode);
     const metadata = {
       user_id: user.id,
       credits: String(CREDIT_PACK_SIZE),
@@ -130,7 +128,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error("Checkout creation failed", error);
     return res.status(503).json({
-      error: "Le paiement de test est momentanément indisponible.",
+      error: "Le paiement est momentanément indisponible.",
     });
   }
 }
